@@ -1,6 +1,8 @@
 package com.mw.search;
 
 
+import com.liferay.journal.model.JournalArticleDisplay;
+import com.liferay.journal.service.JournalArticleLocalServiceUtil;
 import com.liferay.layout.service.LayoutLocalizationLocalService;
 import com.liferay.portal.kernel.language.Language;
 import com.liferay.portal.kernel.log.Log;
@@ -9,11 +11,14 @@ import com.liferay.portal.kernel.model.Layout;
 import com.liferay.portal.kernel.search.Document;
 import com.liferay.portal.kernel.search.Field;
 import com.liferay.portal.kernel.util.LocaleUtil;
+import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.workflow.WorkflowConstants;
 import com.liferay.portal.search.spi.model.index.contributor.ModelDocumentContributor;
 
 import java.util.Locale;
 
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Element;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 
@@ -28,6 +33,19 @@ public class LayoutModelDocumentContributor
 	implements ModelDocumentContributor<Layout> {
 
 	public static final String CLASS_NAME = Layout.class.getName();
+	
+	private String getHTML(long groupId, String articleId, String languageId) {
+		
+		try {
+			JournalArticleDisplay jad = JournalArticleLocalServiceUtil.getArticleDisplay(groupId, articleId, "view", languageId, null);
+			
+			if (jad != null) return jad.getContent();
+		} catch (Exception e) {
+			return null;
+		}	
+		
+		return null;
+	}
 
 	@Override
 	public void contribute(Document document, Layout layout) {
@@ -46,30 +64,47 @@ public class LayoutModelDocumentContributor
 			return;
 		}
 		
-		if (layout.getPlid() == 145) { //Football
-			for (String languageId : layout.getAvailableLanguageIds()) {
-				Locale locale = LocaleUtil.fromLanguageId(languageId);
-
-				document.addText(Field.getLocalizedName(locale, "h1"), "header");				
-				document.addText(Field.getLocalizedName(locale, "h2"), "cheese");
-				document.addText(Field.getLocalizedName(locale, "h3"), "soup");
-				document.addText(Field.getLocalizedName(locale, "h4"), "yoghurt");
-				document.addText(Field.getLocalizedName(locale, "h5"), "bread");
+		long groupId = 20119; // HARCODED
+		String articleId = "42033"; // HARCODED
+		
+		for (String languageId : layout.getAvailableLanguageIds()) {
+			Locale locale = LocaleUtil.fromLanguageId(languageId);
+				
+			String html = getHTML(groupId, articleId, languageId);
+				
+			if (Validator.isNotNull(html)) {
+				org.jsoup.nodes.Document htmlDocument = Jsoup.parse(html.toString());
 					
-				_log.info("Added additional fields for " + layout.getPlid());
-			}			
-		} else if (layout.getPlid() == 146) { //Search
-			for (String languageId : layout.getAvailableLanguageIds()) {
-				Locale locale = LocaleUtil.fromLanguageId(languageId);
-
-				document.addText(Field.getLocalizedName(locale, "h1"), "bread");				
-				document.addText(Field.getLocalizedName(locale, "h2"), "yoghurt");
-				document.addText(Field.getLocalizedName(locale, "h3"), "soup");
-				document.addText(Field.getLocalizedName(locale, "h4"), "cheese");
-				document.addText(Field.getLocalizedName(locale, "h5"), "header");
+				Element h1 = htmlDocument.selectFirst("h1");
+				Element h2 = htmlDocument.selectFirst("h2");
+				Element h3 = htmlDocument.selectFirst("h3");
+				
+				String h1Text = h1.text();
+				String h2Text = h2.text();
+				String h3Text = h3.text();
+				
+				_log.info("h1Text: " + h1Text);
+				_log.info("h2Text: " + h2Text);
+				_log.info("h3Text: " + h3Text);
+				
+				String content = htmlDocument.text();
+				
+				_log.info("content: " + content);
+				
+				document.addText(Field.getLocalizedName(locale, "h1"), h1Text);
+				document.addText(Field.getLocalizedName(locale, "h2"), h2Text);
+				document.addText(Field.getLocalizedName(locale, "h3"), h3Text);
 					
-				_log.info("Added additional fields for " + layout.getPlid());
-			}			
+				document.addText(Field.getLocalizedName(locale, "content"), content);	
+			} else {
+				document.addText(Field.getLocalizedName(locale, "h1"), "");
+				document.addText(Field.getLocalizedName(locale, "h2"), "");
+				document.addText(Field.getLocalizedName(locale, "h3"), "");
+				
+				document.addText(Field.getLocalizedName(locale, "content"), "");
+			}
+					
+			_log.info("Added additional fields for " + layout.getPlid());		
 		}
 	}
 

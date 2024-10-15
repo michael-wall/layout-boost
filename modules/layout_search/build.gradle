@@ -1,3 +1,6 @@
 dependencies {
 	compileOnly group: "com.liferay.portal", name: "release.dxp.api"
+	
+	//HTML Parser
+	compileInclude group: 'org.jsoup', name: 'jsoup', version: '1.18.1'
 }
